@@ -17,10 +17,12 @@
     "eslint-config-hapi": "11.1.0",
     "eslint-plugin-hapi": "4.1.0",
     "eslint-plugin-security": "1.4.0",
+    "hapi": "^17.2.0",
     "lab": "15.2.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "lab -f -a code -t 100 -L",
+    "test-cov-html": "lab -f -a code -r html -o coverage.html"
   },
   "repository": {
     "type": "git",
