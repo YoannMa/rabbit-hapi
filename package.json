@@ -5,11 +5,8 @@
   "main": "lib/index.js",
   "dependencies": {
     "amqplib": "0.5.2",
-    "bluebird": "3.5.0",
-    "hoek": "5.0.2",
-    "lodash.isempty": "^4.4.0",
     "uuid": "3.2.1",
-    "joi": "latest"
+    "joi": "13.1.1"
   },
   "devDependencies": {
     "code": "5.1.2",
@@ -17,8 +14,9 @@
     "eslint-config-hapi": "11.1.0",
     "eslint-plugin-hapi": "4.1.0",
     "eslint-plugin-security": "1.4.0",
-    "hapi": "^17.2.0",
-    "lab": "15.2.0"
+    "hapi": "17.2.0",
+    "lab": "15.2.0",
+    "hoek": "latest"
   },
   "scripts": {
     "test": "lab -f -a code -t 100 -L",

@@ -3,52 +3,150 @@
 const Code = require('code');
 const Hapi = require('hapi');
 const Hoek = require('hoek');
+const Uuid = require('uuid');
 
 const Lab = require('lab');
 
-
 const lab = exports.lab = Lab.script();
 const { describe, it } = lab;
-const expect = Code.expect;
+const expect           = Code.expect;
 
 const Rabbit = require('..');
 
 describe('pub-sub', () => {
 
+    const autoDeleteOptions = { durable : false, autoDelete : false };
+
+    const provisionServer = async (options) => {
+
+        const defaults = { plugins : { 'rabbit-hapi' : {} } };
+        const server   = new Hapi.Server(Hoek.applyToDefaults(defaults, options || {}));
+        await server.register(Rabbit);
+        return server;
+    };
+
     describe('publish()', () => {
 
-        const provisionServer = async (options) => {
+        it('Publish a string message', async () => {
 
-            const defaults = { plugins: { 'rabbit-hapi': {} } };
-            const server = new Hapi.Server(Hoek.applyToDefaults(defaults, options || {}));
-            await server.register(Rabbit);
-            return server;
-        };
+            const server   = await provisionServer();
+            const exchange = { name : Uuid(), options : autoDeleteOptions };
+            const queue    = { name : Uuid(), options : autoDeleteOptions };
 
-        it('Publish a JSON message', async () => {
+            const message = {
+                uuid : Uuid()
+            };
 
-            const server = await provisionServer();
-            const exchange = { name: 'test1' };
-            const queue = { name: 'test1' };
-
-            const message = JSON.stringify({
-                uuid: 'test'
-            });
-
-            await server.publish({ exchange, queue, message });
-
-            await new Promise(async (fulfil, reject) => {
+            const resultPromise = new Promise(async (fulfil) => {
 
                 await server.subscribe({
-                    exchange, queue, consumer: {
-                        receiveFunc(data) {
+                    exchange, queue, consumer : {
+                        receiveFunc : (data) => {
 
-                            expect(JSON.parse(data.content), message);
+                            expect(JSON.parse(data.content)).to.equal(message);
                             fulfil();
                         }
                     }
                 });
             });
+
+            await server.publish({ exchange, queue, message : JSON.stringify(message) });
+
+            await resultPromise;
+        });
+
+        it('Publish a String object message', async () => {
+
+            const server   = await provisionServer();
+            const exchange = { name : Uuid(), options : autoDeleteOptions };
+            const queue    = { name : Uuid(), options : autoDeleteOptions };
+
+            const message = String(Uuid());
+
+            const resultPromise = new Promise(async (fulfil) => {
+
+                await server.subscribe({
+                    exchange, queue, consumer : {
+                        receiveFunc : (data) => {
+
+                            expect(data.content.toString()).to.equal(message);
+                            fulfil();
+                        }
+                    }
+                });
+            });
+
+            await server.publish({ exchange, queue, message });
+
+            await resultPromise;
+        });
+
+        it('Publish without exchange', async () => {
+
+            const server = await provisionServer();
+            const queue  = { name : Uuid(), options : autoDeleteOptions };
+
+            const message = String(Uuid());
+
+            const resultPromise = new Promise(async (fulfil) => {
+
+                await server.subscribe({
+                    queue, consumer : {
+                        receiveFunc : (data) => {
+
+                            expect(data.content.toString()).to.equal(message);
+                            fulfil();
+                        }
+                    }
+                });
+            });
+
+            await server.publish({ queue, message });
+
+            await resultPromise;
+        });
+    });
+
+    describe('subscribe()', () => {
+
+        it('Test debug feature', async () => {
+
+            const server = await provisionServer();
+            const queue  = { name : 'my_model.my_action', options : autoDeleteOptions };
+
+            const message = Uuid();
+
+            const resultPromise = new Promise(async (fulfil) => {
+
+                await server.subscribe({
+                    queue    : { name : 'my_model.debug.my_action', options : autoDeleteOptions },
+                    consumer : {
+                        options     : { prefetch : 1 },
+                        receiveFunc : (data) => {
+
+                            const json = JSON.parse(data.content.toString());
+
+                            expect(json.message.content).to.equal(message);
+                            fulfil();
+                        }
+                    }
+                });
+            });
+
+            await server.subscribe({
+                queue, consumer : {
+                    options     : { requeue : false },
+                    receiveFunc : () => {
+
+                        throw new Error('An Error to try');
+                    }
+                },
+                debug           : { enabled : true, queue : { options : autoDeleteOptions } }
+            });
+
+            await server.publish({ queue, message });
+
+            await resultPromise;
         });
     });
 });
