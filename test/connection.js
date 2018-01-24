@@ -27,7 +27,7 @@ describe('connection()', () => {
 
         const server = provisionServer({ connection : { username : 'notGuest', password : 'notGuestEither' }, maxDelay : 1, maxRetry : 1, socketOptions : { timeout : 1000 } });
 
-        expect(server).throw();
+        expect(server).to.throw();
 
         await server;
     });
