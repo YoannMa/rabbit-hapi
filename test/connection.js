@@ -1,9 +1,7 @@
 'use strict';
 
-const Code = require('code');
-const Hapi = require('hapi');
-const Hoek = require('hoek');
-const Uuid = require('uuid');
+const Code   = require('code');
+const Uuidv4 = require('uuid/v4');
 
 const Lab = require('lab');
 
@@ -11,24 +9,85 @@ const lab = exports.lab = Lab.script();
 const { describe, it } = lab;
 const expect           = Code.expect;
 
-const Rabbit = require('..');
+const AMQPConnection = require('../lib/AMQPConnection');
 
-describe('connection()', () => {
+describe('AMQPConnection', () => {
 
-    const provisionServer = async (options) => {
+    it('should be able to connect', async () => {
 
-        const defaults = {};
-        const server   = new Hapi.Server();
-        await server.register({ plugin : Rabbit, options : Hoek.applyToDefaults(defaults, options || {}) });
-        return server;
-    };
+        const amqpConnection = new AMQPConnection({});
 
-    it('Bad credentials', async () => {
+        await amqpConnection.connect();
 
-        const server = provisionServer({ connection : { username : 'notGuest', password : 'notGuestEither' }, maxDelay : 1, maxRetry : 1, socketOptions : { timeout : 1000 } });
-
-        expect(server).to.throw();
-
-        await server;
+        await amqpConnection.close();
     });
+
+    it('should be able to close and reconnect after', async (flags) => {
+
+        const amqpConnection = new AMQPConnection({});
+
+        amqpConnection.on('connected', flags.mustCall(() => {}, 2));
+
+        await amqpConnection.connect();
+
+        await amqpConnection.close();
+
+        await amqpConnection.reconnect();
+
+        await amqpConnection.close();
+    });
+
+    it('should be able auto connect when a channel is requested', async (flags) => {
+
+        const amqpConnection = new AMQPConnection({});
+
+        amqpConnection.on('connected', flags.mustCall(() => {}, 1));
+
+        await amqpConnection.getChannel();
+
+        await amqpConnection.close();
+    });
+
+    it('shouldn\'t connect when it\'s already trying to connect', async (flags) => {
+
+        const amqpConnection = new AMQPConnection({});
+
+        amqpConnection.on('connected', flags.mustCall(() => {}, 1));
+
+        amqpConnection.connect();
+
+        await amqpConnection.getChannel();
+
+        await amqpConnection.close();
+    });
+
+    it('shouldn\'t connect when it\'s already connected', async (flags) => {
+
+        const amqpConnection = new AMQPConnection({});
+
+        amqpConnection.on('connected', flags.mustCall(() => {}, 1));
+
+        await amqpConnection.connect();
+
+        await amqpConnection.connect();
+
+        await amqpConnection.close();
+    });
+
+    it('it should try to reconnect if the connection is close by rabbitMQ', async (flags) => {
+
+        const amqpConnection = new AMQPConnection({ autoReconnect : true });
+
+        amqpConnection.on('connected', flags.mustCall(() => {}, 2));
+        amqpConnection.on('reconnected', flags.mustCall(() => {}, 1));
+
+        await amqpConnection.connect();
+
+        amqpConnection.connection.emit('close', new Error('test error'));
+
+        await amqpConnection.once('connected');
+
+        await amqpConnection.close();
+    });
+
 });

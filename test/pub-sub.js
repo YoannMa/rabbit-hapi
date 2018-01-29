@@ -1,9 +1,9 @@
 'use strict';
 
-const Code = require('code');
-const Hapi = require('hapi');
-const Hoek = require('hoek');
-const Uuid = require('uuid');
+const Code   = require('code');
+const Hapi   = require('hapi');
+const Hoek   = require('hoek');
+const Uuidv4 = require('uuid/v4');
 
 const Lab = require('lab');
 
@@ -15,7 +15,7 @@ const Rabbit = require('..');
 
 describe('pub-sub', () => {
 
-    const autoDeleteOptions = { durable : false, autoDelete : false };
+    const autoDeleteOptions = { durable : false, autoDelete : true };
 
     const provisionServer = async (options) => {
 
@@ -27,20 +27,23 @@ describe('pub-sub', () => {
 
     describe('publish()', () => {
 
-        it('Publish a string message', async () => {
+        it('Publish a string message', async (flags) => {
 
             const server   = await provisionServer();
-            const exchange = { name : Uuid(), options : autoDeleteOptions };
-            const queue    = { name : Uuid(), options : autoDeleteOptions };
+            const exchange = { name : Uuidv4(), options : autoDeleteOptions };
+            const queue    = { name : Uuidv4(), options : autoDeleteOptions };
 
             const message = {
-                uuid : Uuid()
+                uuid : Uuidv4()
             };
+
+            const waitingFunc = flags.mustCall(() => {}, 1);
 
             const resultPromise = new Promise(async (fulfil) => {
 
                 await server.subscribe({
                     exchange, queue, consumer : {
+                        waitingFunc,
                         receiveFunc : (data) => {
 
                             expect(JSON.parse(data.content)).to.equal(message);
@@ -58,10 +61,10 @@ describe('pub-sub', () => {
         it('Publish a String object message', async () => {
 
             const server   = await provisionServer();
-            const exchange = { name : Uuid(), options : autoDeleteOptions };
-            const queue    = { name : Uuid(), options : autoDeleteOptions };
+            const exchange = { name : Uuidv4(), options : autoDeleteOptions };
+            const queue    = { name : Uuidv4(), options : autoDeleteOptions };
 
-            const message = String(Uuid());
+            const message = String(Uuidv4());
 
             const resultPromise = new Promise(async (fulfil) => {
 
@@ -84,9 +87,9 @@ describe('pub-sub', () => {
         it('Publish without exchange', async () => {
 
             const server = await provisionServer();
-            const queue  = { name : Uuid(), options : autoDeleteOptions };
+            const queue  = { name : Uuidv4(), options : autoDeleteOptions };
 
-            const message = String(Uuid());
+            const message = String(Uuidv4());
 
             const resultPromise = new Promise(async (fulfil) => {
 
@@ -114,7 +117,7 @@ describe('pub-sub', () => {
             const server = await provisionServer();
             const queue  = { name : 'my_model.my_action', options : autoDeleteOptions };
 
-            const message = Uuid();
+            const message = Uuidv4();
 
             const resultPromise = new Promise(async (fulfil) => {
 
