@@ -1,30 +1,31 @@
 'use strict';
 
-const Code   = require('code');
-const Uuidv4 = require('uuid/v4');
-
 const Lab = require('lab');
 
 const lab = exports.lab = Lab.script();
-const { describe, it } = lab;
-const expect           = Code.expect;
+const { afterEach, describe, it } = lab;
 
 const AMQPConnection = require('../lib/AMQPConnection');
 
 describe('AMQPConnection', () => {
 
-    it('should be able to connect', async () => {
+    let amqpConnection;
 
-        const amqpConnection = new AMQPConnection({});
-
-        await amqpConnection.connect();
+    afterEach(async () => {
 
         await amqpConnection.close();
     });
 
+    it('should be able to connect', async () => {
+
+        amqpConnection = new AMQPConnection();
+
+        await amqpConnection.connect();
+    });
+
     it('should be able to close and reconnect after', async (flags) => {
 
-        const amqpConnection = new AMQPConnection({});
+        amqpConnection = new AMQPConnection();
 
         amqpConnection.on('connected', flags.mustCall(() => {}, 2));
 
@@ -32,51 +33,54 @@ describe('AMQPConnection', () => {
 
         await amqpConnection.close();
 
-        await amqpConnection.reconnect();
+        await amqpConnection.connect();
+    });
+
+    it('it should\'t try to close a not connected connection', async (flags) => {
+
+        amqpConnection = new AMQPConnection();
+
+        amqpConnection.on('connected', flags.mustCall(() => {}, 0));
+        amqpConnection.on('close', flags.mustCall(() => {}, 0));
 
         await amqpConnection.close();
     });
 
     it('should be able auto connect when a channel is requested', async (flags) => {
 
-        const amqpConnection = new AMQPConnection({});
+        amqpConnection = new AMQPConnection();
 
         amqpConnection.on('connected', flags.mustCall(() => {}, 1));
 
         await amqpConnection.getChannel();
-
-        await amqpConnection.close();
     });
 
     it('shouldn\'t connect when it\'s already trying to connect', async (flags) => {
 
-        const amqpConnection = new AMQPConnection({});
+        amqpConnection = new AMQPConnection();
 
         amqpConnection.on('connected', flags.mustCall(() => {}, 1));
 
         amqpConnection.connect();
+        amqpConnection.reconnect();
 
         await amqpConnection.getChannel();
-
-        await amqpConnection.close();
     });
 
     it('shouldn\'t connect when it\'s already connected', async (flags) => {
 
-        const amqpConnection = new AMQPConnection({});
+        amqpConnection = new AMQPConnection();
 
         amqpConnection.on('connected', flags.mustCall(() => {}, 1));
 
         await amqpConnection.connect();
 
         await amqpConnection.connect();
-
-        await amqpConnection.close();
     });
 
-    it('it should try to reconnect if the connection is close by rabbitMQ', async (flags) => {
+    it('should try to reconnect by default if the connection is close by rabbitMQ', async (flags) => {
 
-        const amqpConnection = new AMQPConnection({ autoReconnect : true });
+        amqpConnection = new AMQPConnection();
 
         amqpConnection.on('connected', flags.mustCall(() => {}, 2));
         amqpConnection.on('reconnected', flags.mustCall(() => {}, 1));
@@ -85,9 +89,86 @@ describe('AMQPConnection', () => {
 
         amqpConnection.connection.emit('close', new Error('test error'));
 
+        await amqpConnection.once('log');
         await amqpConnection.once('connected');
-
-        await amqpConnection.close();
     });
 
+    it('should not try to reconnect if the connection is close by rabbitMQ', async (flags) => {
+
+        amqpConnection = new AMQPConnection({ autoReconnect : false });
+
+        amqpConnection.on('connected', flags.mustCall(() => {}, 1));
+        amqpConnection.on('reconnected', flags.mustCall(() => {}, 0));
+        amqpConnection.on('close', flags.mustCall(() => {}, 1));
+
+        await amqpConnection.connect();
+
+        amqpConnection.connection.emit('close', new Error('test error'));
+
+        await amqpConnection.once('close');
+    });
+
+    it('should log an error and try to reconnect if rabbitMQ throw a closing connection error', async (flags) => {
+
+        amqpConnection = new AMQPConnection();
+
+        amqpConnection.on('error', flags.mustCall(() => {}, 1));
+        amqpConnection.on('connected', flags.mustCall(() => {}, 2));
+        amqpConnection.on('reconnected', flags.mustCall(() => {}, 1));
+
+        await amqpConnection.connect();
+
+        amqpConnection.connection.emit('error', new Error('AMQPConnection closing'));
+
+        await amqpConnection.once('error');
+
+        await amqpConnection.once('connected');
+    });
+
+    it('should log an error and not try to reconnect if rabbitMQ throw a closing connection error and autoReconnect is false', async (flags) => {
+
+        amqpConnection = new AMQPConnection({ autoReconnect : false });
+
+        amqpConnection.on('error', flags.mustCall(() => {}, 1));
+        amqpConnection.on('connected', flags.mustCall(() => {}, 1));
+
+        await amqpConnection.connect();
+
+        amqpConnection.connection.emit('error', new Error('AMQPConnection closing'));
+
+        await amqpConnection.once('error');
+    });
+
+    it('should log an error and not try to reconnect if rabbitMQ throw a simple connection error', async (flags) => {
+
+        amqpConnection = new AMQPConnection();
+
+        amqpConnection.on('error', flags.mustCall(() => {}, 1));
+        amqpConnection.on('connected', flags.mustCall(() => {}, 1));
+        amqpConnection.on('reconnected', flags.mustCall(() => {}, 0));
+
+        await amqpConnection.connect();
+
+        amqpConnection.connection.emit('error', new Error('w00t w00t sweet error'));
+
+        await amqpConnection.once('error');
+    });
+
+    it('should stop trying to reconnect if retry reached max retry', async (flags) => {
+
+        amqpConnection = new AMQPConnection();
+
+        amqpConnection.on('error', flags.mustCall(() => {}, 2));
+        amqpConnection.on('connected', flags.mustCall(() => {}, 1));
+
+        await amqpConnection.connect();
+
+        amqpConnection.retry = amqpConnection.options.maxRetry;
+
+        amqpConnection.connection.emit('error', new Error('AMQPConnection closing'));
+
+        await amqpConnection.once('error');
+
+        await amqpConnection.once('error');
+    });
 });
