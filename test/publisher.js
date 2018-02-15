@@ -122,17 +122,18 @@ describe('Publisher :', () => {
 
         describe('on Exchange', () => {
 
-            it('should publish using routingKey', async () => {
+            it('should publish using routingKey', () => {
 
-                const exchange = { name : Uuidv4(), options : autoDeleteOptions  };
+                const exchange = { name : Uuidv4(), options : autoDeleteOptions };
 
                 const message    = Uuidv4();
                 const routingKey = Uuidv4();
 
-                await new Promise(async (fulfil) => {
+                return new Promise(async (fulfil) => {
 
                     await new Consumer(amqpConnection, {
                         exchange,
+                        queue       : { options : autoDeleteOptions },
                         routingKeys : [routingKey],
                         consumer    : {
                             receiveFunc : (data) => {
