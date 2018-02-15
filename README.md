@@ -1,4 +1,4 @@
-# WIP
+# Work in Progress
 
 # rabbit-hapi
 HAPI plugin to wrap basic RabbitMQ operations based on [amqp library](https://github.com/squaremo/amqp.node) for NodeJS.

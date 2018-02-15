@@ -1,6 +1,6 @@
 {
-  "name": "rabbit-hapi",
-  "version": "2.0.0",
+  "name": "rabbit-iris",
+  "version": "0.1.0",
   "description": "HAPI plugin to wrap basic RabbitMQ operations",
   "main": "lib/index.js",
   "dependencies": {
@@ -17,7 +17,7 @@
     "eslint-plugin-security": "1.4.0",
     "hapi": "17.2.0",
     "lab": "15.2.0",
-    "hoek": "latest"
+    "hoek": "5.0.3"
   },
   "scripts": {
     "test": "lab -f -a code -t 100 -L",
@@ -32,14 +32,13 @@
     "rabbitMQ",
     "AMQP"
   ],
-  "author": "Goomeo",
+  "author": "Pixul",
   "contributors": [
-    "Claire Bérard <claire.berard@outlook.com>",
-    "Benjamin Besse <benjamin.besse02@gmail.com>"
+    "Yoann MALLEMANCHE <yoann.mallemanche@gmail.com>"
   ],
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Goomeo/rabbit-hapi/issues"
+    "url": "https://github.com/PixulHQ/rabbit-hapi/issues"
   },
-  "homepage": "https://github.com/Goomeo/rabbit-hapi#readme"
+  "homepage": "https://github.com/PixulHQ/rabbit-hapi#readme"
 }
